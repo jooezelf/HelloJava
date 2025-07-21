@@ -20,7 +20,7 @@ public Book() {
 	}
 
 	// getter, setter 생성.
-	public int getId() {
+	public static int getId() {
 		return id;
 	}
 
@@ -28,7 +28,7 @@ public Book() {
 		this.id = id;
 	}
 
-	public String getTitle() {
+	public static String getTitle() {
 		return title;
 	}
 
@@ -36,7 +36,7 @@ public Book() {
 		this.title = title;
 	}
 
-	public String getAuthor() {
+	public static String getAuthor() {
 		return author;
 	}
 
@@ -44,7 +44,7 @@ public Book() {
 		this.author = author;
 	}
 
-	public int getPrice() {
+	public static int getPrice() {
 		return price;
 	}
 
