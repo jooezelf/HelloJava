@@ -1,0 +1,353 @@
+package ive_login;
+
+import java.sql.Timestamp;
+import java.util.List;
+import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        UserDAO dao = new UserDAO();
+        String loggedInUser = null;
+
+        mainLoop: while (true) {
+            printHeader("진실의 방에 오신 것을 환영합니다");
+            System.out.println("1> 로그인 🔐");
+            System.out.println("2> 게스트 모드 👤 (조회만 가능)");
+            System.out.println("0> 종료 ❌");
+            String menu = readMenuOption(sc, "\n메뉴를 선택해주세요 > ");
+
+            switch (menu) {
+                case "1":
+                    printHeader("로그인");
+                    System.out.print("아이디 : ");
+                    String id = sc.nextLine();
+                    System.out.print("비밀번호 : ");
+                    String pw = sc.nextLine();
+
+                    if (dao.login(id, pw)) {
+                        loggedInUser = id;
+                        System.out.println("✅ 로그인 성공! [" + loggedInUser + "] 님 환영합니다.");
+                        categoryMenu(sc, dao, loggedInUser);
+                        loggedInUser = null;
+                    } else {
+                        printHeader("로그인 실패");
+                        System.out.println("❌ 아이디와 비밀번호가 일치하지 않습니다.");
+                        if (!readYesNo(sc, "다시 시도하시겠습니까? (y/n) > ")) {
+                            break mainLoop;
+                        }
+                    }
+                    break;
+
+                case "2":
+                    System.out.println("🚪 게스트 모드는 현재 준비 중입니다.");
+                    break;
+
+                case "0":
+                    System.out.println("👋 프로그램을 종료합니다.");
+                    break mainLoop;
+
+                default:
+                    System.out.println("❗ 올바른 메뉴 번호를 입력해주세요.");
+            }
+        }
+
+        sc.close();
+    }
+
+    public static void categoryMenu(Scanner sc, UserDAO dao, String loggedInUser) {
+        categoryLoop: while (true) {
+            printHeader("카테고리");
+            System.out.println("1> 게시판 📝");
+            System.out.println("2> 사진 📷");
+            System.out.println("3> 동영상 🎥");
+            String input = readMenuOption(sc, "\n메뉴를 선택해주세요 (로그아웃: 0) > ");
+
+            String category = switch (input) {
+                case "1" -> "home";
+                case "2" -> "photo";
+                case "3" -> "video";
+                case "0" -> null;
+                default -> {
+                    System.out.println("❗ 잘못된 입력입니다. 기본값 'home'으로 이동합니다.");
+                    yield "home";
+                }
+            };
+
+            if (category == null) {
+                System.out.println("👋 로그아웃하고 메인 메뉴로 돌아갑니다.");
+                break categoryLoop;
+            }
+
+            boardMenu(sc, dao, loggedInUser, category);
+        }
+    }
+
+    public static void boardMenu(Scanner sc, UserDAO dao, String loggedInUser, String category) {
+        boardLoop: while (true) {
+            List<Post> posts = dao.getPostsByCategory(category);
+            printHeader(category.toUpperCase() + " 게시판");
+
+            if (posts.isEmpty()) {
+                System.out.println("📭 게시글이 없습니다.");
+            } else {
+                for (Post p : posts) {
+                    String regDateStr = "";
+                    if (p.getRegDate() instanceof Timestamp) {
+                        regDateStr = p.getRegDate().toString();
+                    } else {
+                        regDateStr = String.valueOf(p.getRegDate());
+                    }
+                    String[] dateTime = regDateStr.split(" ");
+                    String date = dateTime.length > 0 ? dateTime[0] : "";
+                    String time = dateTime.length > 1 ? dateTime[1] : "";
+                    String dateTimeStr = date + " | " + time;
+
+                    System.out.printf("%d> %s  | [작성자] %s | 조회수 (%d) | 추천수 (%d) | %s\n",
+                            p.getBoardNo(),
+                            p.getTitle(),
+                            p.getWriter(),
+                            p.getViewCount(),
+                            p.getLikeCount(),
+                            dateTimeStr);
+                }
+            }
+
+            System.out.println("\n1> 게시글 조회 🔍");
+            System.out.println("2> 글 작성 ✍️");
+            System.out.println("0> 뒤로가기 🔙");
+            String input = readMenuOption(sc, "\n메뉴를 선택해주세요 > ");
+
+            switch (input) {
+                case "1":
+                    int boardNo = readInt(sc, "조회할 게시글 번호를 입력해주세요 > ");
+
+                    Post post = posts.stream().filter(p -> p.getBoardNo() == boardNo).findFirst().orElse(null);
+                    if (post == null) {
+                        System.out.println("❗ 해당 게시글이 존재하지 않습니다.");
+                        continue;
+                    }
+
+                    dao.increaseViewCount(boardNo);
+                    postDetailMenu(sc, dao, loggedInUser, dao.getPostByBoardNo(boardNo));
+                    break;
+
+                case "2":
+                    printHeader("게시글 작성");
+                    System.out.println("작성자 > " + loggedInUser);
+                    System.out.print("제목 > ");
+                    String title = sc.nextLine();
+                    System.out.print("내용 > ");
+                    String content = sc.nextLine();
+                    if (readYesNo(sc, "작성하시겠습니까? (y/n) > ")) {
+                        Post newPost = new Post(title, loggedInUser, content, category);
+                        if (dao.insertPost(newPost)) {
+                            System.out.println("✅ 작성 완료! 게시판으로 이동합니다.");
+                        } else {
+                            System.out.println("❌ 작성 실패...");
+                        }
+                    }
+                    break;
+
+                case "0":
+                    break boardLoop;
+
+                default:
+                    System.out.println("❗ 잘못된 입력입니다.");
+            }
+        }
+    }
+
+    public static void postDetailMenu(Scanner sc, UserDAO dao, String loggedInUser, Post post) {
+        detailLoop: while (true) {
+            post.setComments(dao.getCommentsByBoardNo(post.getBoardNo()));
+            System.out.println("📌 게시글 상세보기");
+            System.out.println("======================================================================");
+
+            String regDateStr = "";
+            if (post.getRegDate() instanceof Timestamp) {
+                regDateStr = post.getRegDate().toString();
+            } else {
+                regDateStr = String.valueOf(post.getRegDate());
+            }
+
+            String[] dateTime = regDateStr.split(" ");
+            String date = dateTime.length > 0 ? dateTime[0] : "";
+            String time = dateTime.length > 1 ? dateTime[1] : "";
+
+            System.out.printf("제목: %s | 작성자: %s | 조회수: %d | 추천수: %d | %s | %s\n",
+                    post.getTitle(), post.getWriter(), post.getViewCount(), post.getLikeCount(), date, time);
+
+            System.out.println();
+            System.out.printf("내용: %s\n", post.getContent());
+
+            System.out.println("\n---- 💬 댓글 목록 ----");
+            List<Comment> comments = post.getComments();
+            if (comments.isEmpty()) {
+                System.out.println("댓글이 없습니다.");
+            } else {
+                comments.forEach(
+                        c -> System.out.printf("%d / %s: %s\n", c.getCommentId(), c.getWriter(), c.getContent()));
+            }
+
+            System.out.println("\n1> 댓글 작성 ✏️");
+            System.out.println("2> 댓글 삭제 🗑️");
+            System.out.println("3> 추천 👍");
+            System.out.println("4> 공유 🔗");
+            System.out.println("5> 게시글 삭제 ❌");
+            System.out.println("0> 뒤로가기 🔙");
+            String input = readMenuOption(sc, "메뉴를 선택해주세요 > ");
+
+            switch (input) {
+                case "1":
+                    commentWriteLoop: while (true) {
+                        printHeader("댓글 작성");
+                        System.out.println("댓글 작성자 > " + loggedInUser);
+                        System.out.print("댓글 내용 입력 (뒤로가기: 0) > ");
+                        String cContent = sc.nextLine();
+                        if ("0".equals(cContent)) {
+                            break commentWriteLoop;
+                        }
+                        if (readYesNo(sc, "작성하시겠습니까? (y/n) > ")) {
+                            Comment comment = new Comment(0, post.getBoardNo(), loggedInUser, cContent);
+                            System.out.println(dao.insertComment(comment) ? "✅ 댓글 작성 완료!" : "❌ 댓글 작성 실패...");
+                            break commentWriteLoop;
+                        } else {
+                            break commentWriteLoop;
+                        }
+                    }
+                    break;
+
+                case "2":
+                    commentDeleteLoop: while (true) {
+                        printHeader("댓글 삭제");
+                        comments.forEach(
+                                c -> System.out.printf("%d / %s: %s\n", c.getCommentId(), c.getWriter(), c.getContent()));
+                        System.out.println("삭제할 댓글 번호 입력 (뒤로가기: 0) > ");
+                        String inputStr = sc.nextLine();
+                        if ("0".equals(inputStr)) {
+                            break commentDeleteLoop;
+                        }
+                        int cId;
+                        try {
+                            cId = Integer.parseInt(inputStr);
+                        } catch (NumberFormatException e) {
+                            System.out.println("❗ 숫자만 입력해주세요.");
+                            continue;
+                        }
+                        if (readYesNo(sc, "삭제하시겠습니까? (y/n) > ")) {
+                            System.out.println(dao.deleteComment(cId, loggedInUser) ? "✅ 삭제 완료!" : "❌ 삭제 실패 (본인 댓글만 삭제 가능)");
+                            break commentDeleteLoop;
+                        } else {
+                            break commentDeleteLoop;
+                        }
+                    }
+                    break;
+
+                case "3":
+                    if (dao.increaseLikeCount(post.getBoardNo())) {
+                        post.setLikeCount(post.getLikeCount() + 1);
+                        System.out.println("👍 추천되었습니다!");
+                    } else {
+                        System.out.println("❌ 추천 실패 (중복 추천 불가 혹은 기타 오류)...");
+                    }
+                    break;
+
+                case "4":
+                    shareMenu(sc);
+                    break;
+
+                case "5":
+                    if (loggedInUser.equals(post.getWriter())) {
+                        if (readYesNo(sc, "정말 삭제하시겠습니까? (y/n) > ")) {
+                            if (dao.deletePost(post)) {
+                                System.out.println("✅ 게시글 삭제 완료!");
+                                break detailLoop;
+                            } else {
+                                System.out.println("❌ 삭제 실패...");
+                            }
+                        }
+                    } else {
+                        System.out.println("❌ 본인 게시글만 삭제할 수 있습니다.");
+                    }
+                    break;
+
+                case "0":
+                    break detailLoop;
+
+                default:
+                    System.out.println("❗ 잘못된 입력입니다.");
+            }
+        }
+    }
+
+    public static void shareMenu(Scanner sc) {
+        printHeader("공유");
+        System.out.println("1> X (구 Twitter)");
+        System.out.println("2> 인스타그램 📸");
+        System.out.println("3> 틱톡 🎵");
+        System.out.println("0> 취소");
+        String input = readMenuOption(sc, "공유할 플랫폼 선택 (취소: 0) > ");
+
+        String link = switch (input) {
+            case "1" -> "https://x.com";
+            case "2" -> "https://instagram.com";
+            case "3" -> "https://tiktok.com";
+            case "0" -> null;
+            default -> null;
+        };
+
+        if (link != null) {
+            System.out.println("🔗 공유되었습니다! > " + link);
+        } else {
+            System.out.println("❗ 공유가 취소되었습니다.");
+        }
+
+        printFooter();
+    }
+
+    public static void printHeader(String title) {
+        String line = "=".repeat(70);
+        System.out.println("\n" + line);
+        System.out.println("📌 " + title);
+        System.out.println(line + "\n");
+    }
+
+    public static void printFooter() {
+        System.out.println("\n" + "=".repeat(70) + "\n");
+    }
+
+    public static String readMenuOption(Scanner sc, String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            String input = sc.nextLine().trim();
+            if (input.matches("[0-9]+")) {
+                return input;
+            } else {
+                System.out.println("❗ 숫자만 입력해주세요.");
+            }
+        }
+    }
+
+    public static int readInt(Scanner sc, String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            String input = sc.nextLine().trim();
+            try {
+                return Integer.parseInt(input);
+            } catch (NumberFormatException e) {
+                System.out.println("❗ 숫자만 입력해주세요.");
+            }
+        }
+    }
+
+    public static boolean readYesNo(Scanner sc, String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            String input = sc.nextLine().trim().toLowerCase();
+            if (input.equals("y")) return true;
+            else if (input.equals("n")) return false;
+            else System.out.println("❗ 잘못된 입력입니다. 다시 입력해주세요. (y/n)");
+        }
+    }
+}

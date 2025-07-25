@@ -1,0 +1,13 @@
+package com.yedam;
+
+import org.apache.ibatis.session.SqlSessionFactory;
+
+import com.yedam.common.DBUtil;
+
+public class Main {
+	public static void main(String[] args) {
+		DBUtil util = new DBUtil();
+		SqlSessionFactory factory = util.getInstance();
+	}
+
+}

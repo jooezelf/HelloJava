@@ -1,0 +1,20 @@
+package com.yedam.common;
+
+//mybatis 환경을 읽고 SqlSesseionFactory를 생성함.
+public class DBUtil {
+
+	public SqlSessionFactory getInstance() {
+
+		String resource = "com/yedam/common/mybatis-config.xml";
+		InputStream inputStream = null;
+		try {
+			inputStream = Resources.getResourceAsStream(resource);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		SqlSessionFactory sqlSessionFactory = new SqlSessionFactoryBuilder().build(inputStream);
+		return sqlSessionFactory;
+
+	}
+}

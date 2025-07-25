@@ -1,0 +1,9 @@
+package com.yedam.mapper;
+
+import com.yedam.vo.Book;
+
+public interface BookMapper {
+	public Book selectBook(int id);
+	public 
+
+}

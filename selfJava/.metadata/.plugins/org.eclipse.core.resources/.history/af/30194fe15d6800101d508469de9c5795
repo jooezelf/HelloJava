@@ -1,0 +1,57 @@
+package ive_login;
+
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class UserDAO {
+    public boolean login(String id, String pw) {
+        String sql = "SELECT * FROM users WHERE user_id = ? AND password = ?";
+        // ... 기존 코드 ...
+    }
+
+    public List<Post> getPostsByCategory(String category) { /* 기존 구현 */ }
+    public boolean insertPost(Post post) { /* 기존 구현 */ }
+    public boolean deletePost(Post post) { /* 기존 구현 */ }
+    public boolean increaseViewCount(int boardNo) { /* 기존 구현 */ }
+    public List<Comment> getCommentsByBoardNo(int boardNo) { /* 기존 구현 */ }
+    public boolean insertComment(Comment comment) { /* 기존 구현 */ }
+    public boolean deleteComment(int commentNo, String writer) { /* 기존 구현 */ }
+    public Post getPostByBoardNo(int boardNo) { /* 기존 구현 */ }
+
+    public boolean hasUserLikedPost(String userId, int boardNo) {
+        String sql = "SELECT COUNT(*) FROM post_likes WHERE user_id = ? AND board_no = ?";
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, userId);
+            pstmt.setInt(2, boardNo);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return rs.next() && rs.getInt(1) > 0;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public boolean increaseLikeCount(int boardNo, String userId) {
+        String sql1 = "UPDATE board SET like_count = like_count + 1 WHERE board_no = ?";
+        String sql2 = "INSERT INTO post_likes(user_id, board_no) VALUES (?, ?)";
+        try (Connection conn = DBUtil.getConnection()) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement p1 = conn.prepareStatement(sql1);
+                 PreparedStatement p2 = conn.prepareStatement(sql2)) {
+                p1.setInt(1, boardNo);
+                p1.executeUpdate();
+                p2.setString(1, userId);
+                p2.setInt(2, boardNo);
+                p2.executeUpdate();
+            }
+            conn.commit();
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+}

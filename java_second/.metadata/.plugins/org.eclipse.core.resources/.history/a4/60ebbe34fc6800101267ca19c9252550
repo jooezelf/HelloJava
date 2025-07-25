@@ -1,0 +1,9 @@
+/**
+ * 
+ */
+/**
+ * 
+ */
+module mvnProject {
+	requires org.mybatis;
+}
